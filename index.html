@@ -100,14 +100,8 @@ header{display:flex;align-items:center;justify-content:space-between;padding:18p
 .solutions-badge{font-size:.6rem;color:var(--text-dim);font-family:'DM Mono',monospace;}
 .fraction-badge{font-size:.58rem;background:color-mix(in srgb,var(--accent5) 15%,transparent);color:var(--accent5);border:1px solid color-mix(in srgb,var(--accent5) 35%,transparent);border-radius:6px;padding:2px 7px;letter-spacing:.06em;text-transform:uppercase;}
 
-/* TIMER */
-.timer-wrap{margin-bottom:12px;}
-.timer-track{height:4px;background:var(--surface2);border-radius:4px;overflow:hidden;}
-.timer-bar{height:100%;border-radius:4px;background:var(--accent4);transition:width 1s linear,background .5s;width:100%;}
-.timer-bar.warn{background:var(--accent2);}
-.timer-row{display:flex;justify-content:space-between;margin-top:5px;}
-.timer-text{font-family:'DM Mono',monospace;font-size:.72rem;color:var(--text-dim);}
-.puzzle-count{font-size:.65rem;color:var(--text-dim);font-family:'DM Mono',monospace;}
+/* PUZZLE COUNT */
+.puzzle-count{font-size:.65rem;color:var(--text-dim);font-family:'DM Mono',monospace;margin-bottom:12px;}
 
 /* ═══════ WHEEL ═══════ */
 .wheel-wrap{position:relative;width:100%;height:340px;margin:0 auto 14px;touch-action:none;user-select:none;flex-shrink:0;}
@@ -285,13 +279,7 @@ header{display:flex;align-items:center;justify-content:space-between;padding:18p
     </div>
   </div>
 
-  <div class="timer-wrap">
-    <div class="timer-track"><div class="timer-bar" id="timerBar"></div></div>
-    <div class="timer-row">
-      <div class="timer-text"   id="timerText">90s</div>
-      <div class="puzzle-count" id="puzzleCount"></div>
-    </div>
-  </div>
+  <div class="puzzle-count" id="puzzleCount"></div>
 
   <div class="wheel-wrap" id="wheelWrap">
     <div class="wheel-ring"></div>
@@ -429,7 +417,7 @@ function formatValue(v){if(!isFinite(v))return'?';if(Number.isInteger(v))return 
 const cache={},played={};
 let currentTier='easy',currentTarget=24,currentPuzzle=null;
 let hintUsed=false,solveUsed=false,score=0,solved=0,streak=0,bestTime=null;
-let timerInterval=null,timeLeft=90,puzzleStartTime=null;
+let puzzleStartTime=null;
 
 // Wheel physics
 let wheelAngle=0,wheelVel=0,dragActive=false,wasDrag=false;
@@ -486,14 +474,15 @@ function pickPuzzle(){const key=cacheKey(currentTier,currentTarget),pool=cache[k
 //  PUZZLE LIFECYCLE
 // ═══════════════════════════════════════════════════════════
 function newPuzzle(){
-  clearInterval(timerInterval);cancelAnimationFrame(rafId);
+  cancelAnimationFrame(rafId);
   expression=[];stepHistory=[];tileIdSeq=0;
   wheelAngle=0;wheelVel=0;
   hintUsed=false;solveUsed=false;
   currentPuzzle=pickPuzzle();
   if(!currentPuzzle){document.getElementById('wheelWrap').innerHTML='<div class="no-puzzles-msg"><strong>No Puzzles Loaded</strong>Run generate_puzzles.py and place JSON files alongside index.html.</div>';hideQuality();return;}
   tiles=currentPuzzle.n.map((n)=>makeTile(n,String(n),String(n),false));
-  renderAll();hideFeedback();startTimer();updatePuzzleCount();
+  puzzleStartTime=Date.now();
+  renderAll();hideFeedback();updatePuzzleCount();
   document.getElementById('solvedOverlay').classList.remove('show');
 }
 function nextPuzzle(){document.getElementById('solvedOverlay').classList.remove('show');newPuzzle();}
@@ -846,7 +835,8 @@ function initWheelDrag(){
     dragLastTime=performance.now();
     wheelVel=0;
     cancelAnimationFrame(rafId);
-  }, {passive:true});
+    e.preventDefault();
+  }, {passive:false});
 
   window.addEventListener('touchmove', e=>{
     if(!dragActive || e.touches.length!==1) return;
@@ -956,10 +946,10 @@ function commitStep(){
 // ═══════════════════════════════════════════════════════════
 function handleCorrect(){
   const elapsed=Math.round((Date.now()-puzzleStartTime)/1000);
-  const pts=Math.max(10,100+Math.max(0,timeLeft)*2-(hintUsed?30:0)-(solveUsed?80:0));
+  const pts=Math.max(10,100-(hintUsed?30:0)-(solveUsed?80:0));
   score+=pts;solved++;streak++;
   if(bestTime===null||elapsed<bestTime)bestTime=elapsed;
-  clearInterval(timerInterval);updateStats();
+  updateStats();
 
   const stepsEl=document.getElementById('solvedSteps');stepsEl.innerHTML='';
   stepHistory.forEach((s,i)=>{const l=document.createElement('div');l.className=i===stepHistory.length-1?'final-line':'';l.textContent=`${s.expr} = ${s.result}`;stepsEl.appendChild(l);});
@@ -984,9 +974,6 @@ function showSolution(){if(!currentPuzzle?.s?.length){showFeedback('No solution 
 // ═══════════════════════════════════════════════════════════
 //  TIMER
 // ═══════════════════════════════════════════════════════════
-function startTimer(){timeLeft=90;puzzleStartTime=Date.now();updateTimerDisplay();timerInterval=setInterval(()=>{timeLeft--;updateTimerDisplay();if(timeLeft<=0){clearInterval(timerInterval);streak=0;updateStats();showFeedback("Time's up!",'wrong');if(currentPuzzle?.s?.length)setTimeout(()=>showToast(`Solution: ${currentPuzzle.s[0]}`),500);}},1000);}
-function updateTimerDisplay(){document.getElementById('timerBar').style.width=(timeLeft/90*100)+'%';document.getElementById('timerBar').classList.toggle('warn',timeLeft<20);document.getElementById('timerText').textContent=timeLeft+'s';}
-
 // ═══════════════════════════════════════════════════════════
 //  HELPERS
 // ═══════════════════════════════════════════════════════════
