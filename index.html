@@ -50,6 +50,19 @@ header{display:flex;align-items:center;justify-content:space-between;padding:18p
 .theme-name{font-size:.68rem;font-weight:600;color:var(--text);padding:6px 8px 7px;background:var(--surface2);text-align:center;}
 .theme-panel-backdrop{position:fixed;inset:0;z-index:299;display:none;}
 .theme-panel-backdrop.open{display:block;}
+/* Settings panel sits above theme panel */
+#settingsPanel{z-index:302;}
+#settingsPanelBackdrop{z-index:301;}
+
+/* Wheel mode cards in settings grid */
+.wheel-mode-option{border-radius:12px;border:2px solid var(--border);overflow:hidden;cursor:pointer;transition:all .15s;}
+.wheel-mode-option.current{border-color:var(--accent);}
+.wheel-mode-option:active{transform:scale(.97);}
+.wheel-mode-preview{height:80px;background:var(--surface2);position:relative;display:flex;align-items:center;justify-content:center;gap:8px;}
+.wheel-mode-preview .wm-card{width:36px;height:36px;border-radius:8px;border:2px solid var(--border);background:var(--surface);display:flex;align-items:center;justify-content:center;font-family:'Bebas Neue',sans-serif;font-size:1.4rem;color:var(--text);}
+.wheel-mode-preview .wm-card.tilt{transform:rotate(90deg);}
+.wheel-mode-name{font-size:.68rem;font-weight:600;color:var(--text);padding:6px 8px 7px;background:var(--surface2);border-top:1px solid var(--border);text-align:center;}
+.wheel-mode-desc{font-size:.58rem;color:var(--text-dim);padding:0 8px 7px;text-align:center;}
 
 /* TIER */
 .tier-section{margin-bottom:10px;}
@@ -97,31 +110,34 @@ header{display:flex;align-items:center;justify-content:space-between;padding:18p
 .puzzle-count{font-size:.65rem;color:var(--text-dim);font-family:'DM Mono',monospace;}
 
 /* ═══════ WHEEL ═══════ */
-.wheel-wrap{position:relative;width:100%;aspect-ratio:1;max-height:270px;margin:0 auto 14px;touch-action:none;user-select:none;flex-shrink:0;}
-.wheel-ring{position:absolute;inset:0;border-radius:50%;border:1.5px dashed color-mix(in srgb,var(--border) 55%,transparent);pointer-events:none;}
+.wheel-wrap{position:relative;width:100%;height:340px;margin:0 auto 14px;touch-action:none;user-select:none;flex-shrink:0;}
+/* Ring is a circle centred in the rectangle */
+.wheel-ring{position:absolute;border-radius:50%;border:1.5px dashed color-mix(in srgb,var(--border) 55%,transparent);pointer-events:none;}
 
 .wheel-card{
   position:absolute;
-  border-radius:18px;
-  border:2.5px solid var(--border);
+  /* clip-path applied in JS for trapezoid; border-radius only applies to the outer (bottom) edge */
+  border:none;
   display:flex;flex-direction:column;
   align-items:center;justify-content:center;
   cursor:pointer;
-  transition:border-color .15s,opacity .2s,box-shadow .15s;
-  overflow:hidden;
+  transition:opacity .2s,filter .15s;
+  overflow:visible;
 }
+/* Trapezoid border drawn as inset box-shadow so it clips with the polygon */
 .wheel-card.origin-0{background:var(--card1);}
 .wheel-card.origin-1{background:var(--card2);}
 .wheel-card.origin-2{background:var(--card3);}
 .wheel-card.origin-3{background:var(--card4);}
-.wheel-card.intermediate{background:color-mix(in srgb,var(--accent3) 12%,var(--surface));border-color:color-mix(in srgb,var(--accent3) 45%,var(--border));}
-.wheel-card.selected{border-color:var(--accent) !important;box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 30%,transparent);}
+.wheel-card.intermediate{background:color-mix(in srgb,var(--accent3) 12%,var(--surface));}
+.wheel-card.selected{filter:drop-shadow(0 0 6px color-mix(in srgb,var(--accent) 70%,transparent));}
+.wheel-card.selected .card-border{stroke:var(--accent);stroke-width:3;}
 .wheel-card.consumed{opacity:.2;pointer-events:none;}
 .wheel-card.empty{opacity:0;pointer-events:none;}
 
 .card-num{
   font-family:'Bebas Neue',sans-serif;
-  font-size:3rem;
+  font-size:4rem;
   line-height:1;
   color:var(--text);
   display:block;
@@ -233,6 +249,7 @@ header{display:flex;align-items:center;justify-content:space-between;padding:18p
         <div class="score-val" id="scoreDisplay">0</div>
       </div>
       <button class="theme-btn" onclick="openThemePanel()" title="Change theme">🎨</button>
+      <button class="theme-btn" onclick="openSettingsPanel()" title="Settings">⚙️</button>
     </div>
   </header>
 
@@ -320,6 +337,14 @@ header{display:flex;align-items:center;justify-content:space-between;padding:18p
   <div class="theme-grid" id="themeGrid"></div>
 </div>
 
+<!-- SETTINGS PANEL -->
+<div class="theme-panel-backdrop" id="settingsPanelBackdrop" onclick="closeSettingsPanel()"></div>
+<div class="theme-panel" id="settingsPanel">
+  <div class="theme-panel-handle"></div>
+  <div class="theme-panel-title">Wheel Style</div>
+  <div class="theme-grid" id="wheelModeGrid"></div>
+</div>
+
 <div class="solved-overlay" id="solvedOverlay">
   <div class="solved-title">SOLVED! 🎉</div>
   <div class="solved-steps" id="solvedSteps"></div>
@@ -335,12 +360,54 @@ header{display:flex;align-items:center;justify-content:space-between;padding:18p
 //  THEME
 // ═══════════════════════════════════════════════════════════
 const DEFAULT_THEME = 'midnight';
+
+// ═══════════════════════════════════════════════════════════
+//  ★  WHEEL MODE SETTING  ★
+//  'upright' — numbers always face up, no underline on 6/9
+//  'radial'  — numbers face outward from wheel centre, 6/9 underlined
+// ═══════════════════════════════════════════════════════════
+const DEFAULT_WHEEL_MODE = 'upright';
+let wheelMode = DEFAULT_WHEEL_MODE;
 const THEMES={midnight:{label:'Midnight',swatches:['#0a0a0f','#13131a','#f0c040','#e05a5a','#5ab4e0']},cream:{label:'Cream',swatches:['#faf7f2','#f2ede4','#e8601c','#1a1a18','#27ae60']},slate:{label:'Slate',swatches:['#f4f6f8','#ffffff','#2563eb','#1e293b','#16a34a']},chalk:{label:'Chalk',swatches:['#fffef7','#f8f5e8','#c9900a','#2c2410','#1e8449']},mint:{label:'Mint',swatches:['#f0faf5','#ffffff','#059669','#1a2e22','#7c3aed']},paper:{label:'Paper',swatches:['#f8f8f6','#ffffff','#18181b','#e11d48','#0ea5e9']}};
 let activeTheme=DEFAULT_THEME;
 function applyTheme(k){activeTheme=k;document.body.setAttribute('data-theme',k);localStorage.setItem('math24_theme',k);renderThemeGrid();}
 function openThemePanel(){document.getElementById('themePanel').classList.add('open');document.getElementById('themePanelBackdrop').classList.add('open');}
 function closeThemePanel(){document.getElementById('themePanel').classList.remove('open');document.getElementById('themePanelBackdrop').classList.remove('open');}
 function renderThemeGrid(){const g=document.getElementById('themeGrid');g.innerHTML='';Object.entries(THEMES).forEach(([k,d])=>{const o=document.createElement('div');o.className=`theme-option${k===activeTheme?' current':''}`;o.innerHTML=`<div class="theme-swatches">${d.swatches.map(c=>`<div class="theme-swatch" style="background:${c}"></div>`).join('')}</div><div class="theme-name">${d.label}</div>`;o.addEventListener('click',()=>{applyTheme(k);closeThemePanel();});g.appendChild(o);});}
+
+function openSettingsPanel(){document.getElementById('settingsPanel').classList.add('open');document.getElementById('settingsPanelBackdrop').classList.add('open');}
+function closeSettingsPanel(){document.getElementById('settingsPanel').classList.remove('open');document.getElementById('settingsPanelBackdrop').classList.remove('open');}
+
+const WHEEL_MODES={
+  upright:{label:'Upright',desc:'Numbers always face up'},
+  radial: {label:'Radial', desc:'Numbers face outward, 6/9 underlined'},
+};
+
+function applyWheelMode(m){
+  wheelMode=m;
+  localStorage.setItem('math24_wheelmode',m);
+  renderWheelModeGrid();
+  renderWheel();
+}
+
+function renderWheelModeGrid(){
+  const g=document.getElementById('wheelModeGrid');g.innerHTML='';
+  Object.entries(WHEEL_MODES).forEach(([k,d])=>{
+    const o=document.createElement('div');
+    o.className=`wheel-mode-option${k===wheelMode?' current':''}`;
+    // Mini preview: two cards, upright vs tilted
+    const tilt=k==='radial';
+    o.innerHTML=`
+      <div class="wheel-mode-preview">
+        <div class="wm-card${tilt?' tilt':''}">6</div>
+        <div class="wm-card${tilt?' tilt':''}">9</div>
+      </div>
+      <div class="wheel-mode-name">${d.label}</div>
+      <div class="wheel-mode-desc">${d.desc}</div>`;
+    o.addEventListener('click',()=>{applyWheelMode(k);closeSettingsPanel();});
+    g.appendChild(o);
+  });
+}
 
 // ═══════════════════════════════════════════════════════════
 //  CONFIG
@@ -375,6 +442,9 @@ async function boot(){
   const saved=localStorage.getItem('math24_theme');
   applyTheme((saved&&THEMES[saved])?saved:DEFAULT_THEME);
   renderThemeGrid();
+  const savedMode=localStorage.getItem('math24_wheelmode');
+  if(savedMode&&WHEEL_MODES[savedMode]) wheelMode=savedMode;
+  renderWheelModeGrid();
   await loadTier(currentTier,currentTarget);
   hideLoading();
   newPuzzle();
@@ -436,46 +506,272 @@ function renderAll(){renderWheel();renderStepHistory();renderExpr();renderQualit
 function getGeometry(){
   const wrap=document.getElementById('wheelWrap');
   const rect=wrap.getBoundingClientRect();
-  const size=Math.min(rect.width,rect.height);
-  const cardSize=Math.round(size*0.30);
-  const orbitR=size*0.33;
-  const cx=size/2, cy=size/2;
-  return{size,cx,cy,cardSize,orbitR};
+  const W=rect.width, H=rect.height;
+  // Use the full height as the sizing dimension so wheel fills the container
+  const usable=Math.min(W,H);
+  const cardW=Math.round(usable*0.44);      // outer (wide) edge of trapezoid
+  const cardH=Math.round(cardW*0.88);       // radial depth of card
+  // Orbit radius: centre of card sits so outer edge almost touches usable boundary
+  const orbitR=usable*0.50 - cardH*0.52;
+  const cx=W/2, cy=H/2;
+  return{W,H,cx,cy,cardW,cardH,orbitR};
 }
 
 function renderWheel(){
   const wrap=document.getElementById('wheelWrap');
-  wrap.querySelectorAll('.wheel-card').forEach(c=>c.remove());
+  // Clear previous cards (SVG elements) but keep the background SVG
+  wrap.querySelectorAll('.wheel-card-svg').forEach(c=>c.remove());
+
+  // ── Background SVG: ring + spokes (recreate each frame so spokes rotate) ──
+  let bgSvg=wrap.querySelector('.wheel-bg-svg');
+  if(!bgSvg){
+    bgSvg=document.createElementNS('http://www.w3.org/2000/svg','svg');
+    bgSvg.classList.add('wheel-bg-svg');
+    bgSvg.style.cssText='position:absolute;left:0;top:0;pointer-events:none;overflow:visible;';
+    wrap.appendChild(bgSvg);
+  }
+  const{W,H,cx,cy,cardW,cardH,orbitR}=getGeometry();
+  bgSvg.setAttribute('width',W);
+  bgSvg.setAttribute('height',H);
+  bgSvg.innerHTML=''; // redraw ring + spokes each frame
+
+  const cs2=getComputedStyle(document.body);
+  const ringCol=cs2.getPropertyValue('--border').trim()||'#2a2a3a';
+  const ringR=(orbitR+cardH*0.56);
+
+  // Spokes only — no ring
+  const hubR=18;
+  const spokeEnd=orbitR-cardH*0.52;
+  for(let i=0;i<4;i++){
+    const a=-Math.PI/2+(i*Math.PI/2)+wheelAngle;
+    const x1=cx+Math.cos(a)*hubR,  y1=cy+Math.sin(a)*hubR;
+    const x2=cx+Math.cos(a)*spokeEnd, y2=cy+Math.sin(a)*spokeEnd;
+    const spoke=document.createElementNS('http://www.w3.org/2000/svg','line');
+    spoke.setAttribute('x1',x1); spoke.setAttribute('y1',y1);
+    spoke.setAttribute('x2',x2); spoke.setAttribute('y2',y2);
+    spoke.setAttribute('stroke',ringCol);
+    spoke.setAttribute('stroke-width','1.5');
+    spoke.setAttribute('stroke-linecap','round');
+    bgSvg.appendChild(spoke);
+  }
+
   if(!currentPuzzle)return;
-  const{cx,cy,cardSize,orbitR}=getGeometry();
+
+  // ── Trapezoid geometry (card-local coords) ──────────────────
+  // Inner edge (top, toward centre) is narrower; outer edge (bottom) is full width.
+  const taper=0.62;          // inner width = 62% of outer
+  const outerW=cardW;
+  const innerW=Math.round(cardW*taper);
+  const insetX=(outerW-innerW)/2;
+  const rI=5;   // corner radius, inner edge
+  const rO=13;  // corner radius, outer edge
+
+  // The four raw trapezoid corners (local, top=inner, bottom=outer):
+  const TL={x:insetX,   y:0};
+  const TR={x:insetX+innerW, y:0};
+  const BR={x:outerW,   y:cardH};
+  const BL={x:0,        y:cardH};
+
+  // Unit vectors along each slanted side
+  function unit(ax,ay,bx,by){const d=Math.sqrt((bx-ax)**2+(by-ay)**2);return{x:(bx-ax)/d,y:(by-ay)/d};}
+  const uL=unit(TL.x,TL.y,BL.x,BL.y);
+  const uR=unit(TR.x,TR.y,BR.x,BR.y);
+
+  // Rounded-trapezoid SVG path (clockwise from inner-left corner)
+  function trapezoidPath(pad=0){
+    // Shrink all corners by pad for the fill path (to stay inside the stroke)
+    const p=pad;
+    // Top edge: TL+p → TR-p
+    const tlS={x:TL.x+rI+p, y:TL.y+p};
+    const trS={x:TR.x-rI-p, y:TR.y+p};
+    // Left side after TL corner: walk rI along left side
+    const tlE={x:TL.x+uL.x*rI+p*uL.y, y:TL.y+uL.y*rI-p*uL.x};   // approx inward
+    // Right side after TR corner
+    const trE={x:TR.x+uR.x*rI-p*uR.y, y:TR.y+uR.y*rI+p*uR.x};
+    // Right side before BR corner
+    const brS={x:BR.x-uR.x*rO+p*uR.y, y:BR.y-uR.y*rO-p*uR.x};
+    const brE={x:BR.x-rO-p,  y:BR.y-p};
+    // Bottom edge BR→BL
+    const blS={x:BL.x+rO+p,  y:BL.y-p};
+    // Left side before BL corner
+    const blE={x:BL.x-uL.x*rO-p*uL.y, y:BL.y-uL.y*rO+p*uL.x};
+    return [
+      `M ${tlS.x},${tlS.y}`,
+      `L ${trS.x},${trS.y}`,
+      `Q ${TR.x},${TR.y} ${trE.x},${trE.y}`,
+      `L ${brS.x},${brS.y}`,
+      `Q ${BR.x},${BR.y} ${brE.x},${brE.y}`,
+      `L ${blS.x},${blS.y}`,
+      `Q ${BL.x},${BL.y} ${blE.x},${blE.y}`,
+      `L ${tlE.x},${tlE.y}`,
+      `Q ${TL.x},${TL.y} ${tlS.x},${tlS.y}`,
+      `Z`,
+    ].join(' ');
+  }
+
+  // Read live CSS vars for colours
+  const cs=getComputedStyle(document.body);
+  const cv=n=>cs.getPropertyValue(n).trim();
+  const card1=cv('--card1')||'#1e1030';
+  const card2=cv('--card2')||'#0e2030';
+  const card3=cv('--card3')||'#1e1010';
+  const card4=cv('--card4')||'#0e2010';
+  const cardBgs=[card1,card2,card3,card4];
+  const borderCol =cv('--border') ||'#2a2a3a';
+  const accentCol =cv('--accent') ||'#f0c040';
+  const accent3Col=cv('--accent3')||'#5ab4e0';
+  const textCol   =cv('--text')   ||'#f0eff8';
+  const textDimCol=cv('--text-dim')||'#7a7a9a';
+  const surfCol   =cv('--surface')||'#13131a';
+  const accent3Mix=`color-mix(in srgb,${accent3Col} 12%,${surfCol})`;
 
   tiles.forEach((tile,i)=>{
     if(tile.empty)return;
 
-    // Cards start at top (−π/2), spaced 90° apart, plus current wheelAngle
-    const angle=-Math.PI/2+(i*Math.PI/2)+wheelAngle;
-    const x=cx+orbitR*Math.cos(angle)-cardSize/2;
-    const y=cy+orbitR*Math.sin(angle)-cardSize/2;
-
+    const baseAngle=-Math.PI/2+(i*Math.PI/2)+wheelAngle;
+    const cardCx=cx+orbitR*Math.cos(baseAngle);
+    const cardCy=cy+orbitR*Math.sin(baseAngle);
     const inExpr=expression.some(t=>t.type==='tile'&&t.tileId===tile.id);
-    const originClass=tile.isIntermediate?'intermediate':`origin-${i}`;
 
-    const card=document.createElement('div');
-    card.className=['wheel-card',originClass,tile.consumed?'consumed':'',inExpr?'selected':''].filter(Boolean).join(' ');
-    card.style.cssText=`width:${cardSize}px;height:${cardSize}px;left:${Math.round(x)}px;top:${Math.round(y)}px;`;
+    // Both modes: trapezoid narrow end (top) always points toward wheel centre.
+    // baseAngle is the direction FROM centre TO card, so inward = baseAngle + π.
+    // SVG "up" is −Y, so we subtract π/2 to align.
+    const trapRotDeg=(baseAngle-Math.PI/2)*(180/Math.PI);
 
-    // Underline 6 and 9 only
+    // In radial mode the text rotates with the card (no counter-rotation needed).
+    // In upright mode the text counter-rotates by the same amount to stay screen-upright.
+    const rotDeg=trapRotDeg;
+    const textCounterRot=wheelMode==='upright' ? -trapRotDeg : 0;
+
+    // SVG bounding box (fits the full outer trapezoid)
+    const svgW=outerW, svgH=cardH;
+    const left=Math.round(cardCx-svgW/2);
+    const top =Math.round(cardCy-svgH/2);
+
+    // One SVG element per card — contains fill + border + text
+    // We add a small pad on all sides so the stroke isn't clipped, and use
+    // overflow:hidden so the SVG never bleeds over neighbouring cards.
+    const pad=4;
+    const NS='http://www.w3.org/2000/svg';
+    const svg=document.createElementNS(NS,'svg');
+    svg.setAttribute('width', svgW+pad*2);
+    svg.setAttribute('height',svgH+pad*2);
+    svg.setAttribute('viewBox',`${-pad} ${-pad} ${svgW+pad*2} ${svgH+pad*2}`);
+    svg.setAttribute('overflow','hidden');
+    svg.classList.add('wheel-card-svg');
+
+    svg.style.cssText=[
+      `position:absolute`,
+      `left:${left-pad}px`,
+      `top:${top-pad}px`,
+      `transform-origin:${svgW/2+pad}px ${svgH/2+pad}px`,
+      `transform:rotate(${rotDeg}deg)`,
+      `transition:opacity .2s`,
+      tile.consumed?'opacity:0.22;pointer-events:none':'cursor:pointer',
+    ].filter(Boolean).join(';');
+
+    // Unique clipPath id per card render
+    const clipId=`tc_${i}_${tileIdSeq}`;
+
+    // Fill colour: CSS gradients can't fill SVG paths directly, so we use
+    // a nested foreignObject for the gradient background + clip to the trapezoid.
+    const fillCol=tile.isIntermediate
+      ? accent3Col+'22'   // light tint
+      : null;             // use foreignObject for gradient
+
+    // Build defs: clipPath for the trapezoid shape
+    const defs=document.createElementNS(NS,'defs');
+    const clipPath=document.createElementNS(NS,'clipPath');
+    clipPath.setAttribute('id',clipId);
+    const clipRect=document.createElementNS(NS,'path');
+    clipRect.setAttribute('d',trapezoidPath(0));
+    clipPath.appendChild(clipRect);
+    defs.appendChild(clipPath);
+    svg.appendChild(defs);
+
+    // foreignObject: renders the CSS gradient background, clipped to trapezoid
+    const fo=document.createElementNS(NS,'foreignObject');
+    fo.setAttribute('x',0); fo.setAttribute('y',0);
+    fo.setAttribute('width',svgW); fo.setAttribute('height',svgH);
+    fo.setAttribute('clip-path',`url(#${clipId})`);
+    const foBg=document.createElement('div');
+    foBg.setAttribute('xmlns','http://www.w3.org/1999/xhtml');
+    foBg.style.cssText=`width:${svgW}px;height:${svgH}px;background:${
+      tile.isIntermediate
+        ? `color-mix(in srgb,${accent3Col} 14%,${surfCol})`
+        : cardBgs[i%4]
+    }`;
+    fo.appendChild(foBg);
+    svg.appendChild(fo);
+
+    // Border stroke path
+    const strokeCol=inExpr ? accentCol : borderCol;
+    const strokeW  =inExpr ? 3 : 1.8;
+    const border=document.createElementNS(NS,'path');
+    border.setAttribute('d',trapezoidPath(0));
+    border.setAttribute('fill','none');
+    border.setAttribute('stroke',strokeCol);
+    border.setAttribute('stroke-width',strokeW);
+    // Selected glow
+    if(inExpr){
+      border.setAttribute('filter',`drop-shadow(0 0 5px ${accentCol}88)`);
+    }
+    svg.appendChild(border);
+
+    // Number text — centred in card
     const d=tile.display;
-    const ul=(d==='6'||d==='9')?'underline69':'';
-    card.innerHTML=`<span class="card-num${ul?' '+ul:''}">${d}</span>${tile.isIntermediate?`<span class="card-origin">${tile.originLabel}</span>`:''}`;
+    const ul=wheelMode==='radial'&&(d==='6'||d==='9');
+    const fontSize=Math.round(svgW*0.50);
+    const textY=svgH/2;
 
+    const txt=document.createElementNS(NS,'text');
+    txt.setAttribute('x',svgW/2);
+    txt.setAttribute('y',textY);
+    txt.setAttribute('text-anchor','middle');
+    txt.setAttribute('dominant-baseline','middle');
+    txt.setAttribute('font-family','Bebas Neue, sans-serif');
+    txt.setAttribute('font-size',fontSize);
+    txt.setAttribute('fill',textCol);
+    if(textCounterRot!==0){
+      txt.setAttribute('transform',`rotate(${textCounterRot},${svgW/2},${textY})`);
+    }
+    if(ul){
+      txt.setAttribute('text-decoration','underline');
+      txt.setAttribute('text-underline-offset','3px');
+    }
+    txt.textContent=d;
+    svg.appendChild(txt);
+
+    // Intermediate origin label
+    if(tile.isIntermediate){
+      const orig=document.createElementNS(NS,'text');
+      orig.setAttribute('x',svgW/2);
+      orig.setAttribute('y',svgH*0.84);
+      orig.setAttribute('text-anchor','middle');
+      orig.setAttribute('font-family','DM Mono, monospace');
+      orig.setAttribute('font-size',Math.round(svgW*0.13));
+      orig.setAttribute('fill',textDimCol);
+      if(textCounterRot!==0){
+        orig.setAttribute('transform',`rotate(${textCounterRot},${svgW/2},${svgH*0.84})`);
+      }
+      orig.textContent=tile.originLabel.length>10
+        ? tile.originLabel.slice(0,10)+'…'
+        : tile.originLabel;
+      svg.appendChild(orig);
+    }
+
+    // z-index: cards lower on screen paint over cards higher on screen
+    svg.style.zIndex=Math.round(cardCy);
+
+    // Tap / click handler
     if(!tile.consumed){
-      card.addEventListener('pointerup',(e)=>{
+      svg.addEventListener('pointerup',e=>{
         e.stopPropagation();
         if(!wasDrag) selectTile(tile.id);
       });
     }
-    wrap.appendChild(card);
+
+    wrap.appendChild(svg);
   });
 }
 
@@ -502,30 +798,31 @@ function updatePuzzleCount(){const pool=cache[cacheKey(currentTier,currentTarget
 function initWheelDrag(){
   const wrap=document.getElementById('wheelWrap');
 
-  function pointerAngle(e){
+  function pointerAngle(clientX, clientY){
     const rect=wrap.getBoundingClientRect();
     const{cx,cy}=getGeometry();
-    const px=(e.touches?e.touches[0].clientX:e.clientX)-rect.left;
-    const py=(e.touches?e.touches[0].clientY:e.clientY)-rect.top;
-    return Math.atan2(py-cy,px-cx);
+    return Math.atan2(clientY-rect.top-cy, clientX-rect.left-cx);
   }
 
-  function onStart(e){
-    dragActive=true;wasDrag=false;
-    dragLastAngle=pointerAngle(e);
+  // ── Mouse ────────────────────────────────────────────────
+  wrap.addEventListener('mousedown', e=>{
+    if(e.button!==0) return;          // left button only
+    dragActive=true; wasDrag=false;
+    dragLastAngle=pointerAngle(e.clientX,e.clientY);
     dragLastTime=performance.now();
     wheelVel=0;
     cancelAnimationFrame(rafId);
-  }
-
-  function onMove(e){
-    if(!dragActive)return;
     e.preventDefault();
-    const a=pointerAngle(e);
+  });
+
+  window.addEventListener('mousemove', e=>{
+    if(!dragActive) return;
+    if(e.buttons===0){ dragActive=false; return; }  // button released without mouseup
+    const a=pointerAngle(e.clientX,e.clientY);
     let delta=a-dragLastAngle;
-    if(delta>Math.PI)delta-=2*Math.PI;
-    if(delta<-Math.PI)delta+=2*Math.PI;
-    if(Math.abs(delta)>0.008)wasDrag=true;
+    if(delta> Math.PI) delta-=2*Math.PI;
+    if(delta<-Math.PI) delta+=2*Math.PI;
+    if(Math.abs(delta)>0.008) wasDrag=true;
     const now=performance.now();
     const dt=Math.max(now-dragLastTime,1);
     wheelVel=delta/dt*16;
@@ -533,24 +830,56 @@ function initWheelDrag(){
     dragLastAngle=a;
     dragLastTime=now;
     renderWheel();
-  }
+  });
 
-  function onEnd(){
-    if(!dragActive)return;
+  window.addEventListener('mouseup', ()=>{
+    if(!dragActive) return;
     dragActive=false;
-    // Momentum coast
-    (function coast(){
-      wheelVel*=0.91;
-      if(Math.abs(wheelVel)>0.001){wheelAngle+=wheelVel;renderWheel();rafId=requestAnimationFrame(coast);}
-    })();
-  }
+    coast();
+  });
 
-  wrap.addEventListener('mousedown',onStart);
-  wrap.addEventListener('touchstart',onStart,{passive:false});
-  window.addEventListener('mousemove',onMove);
-  window.addEventListener('touchmove',onMove,{passive:false});
-  window.addEventListener('mouseup',onEnd);
-  window.addEventListener('touchend',onEnd);
+  // ── Touch ────────────────────────────────────────────────
+  wrap.addEventListener('touchstart', e=>{
+    if(e.touches.length!==1) return;
+    dragActive=true; wasDrag=false;
+    dragLastAngle=pointerAngle(e.touches[0].clientX,e.touches[0].clientY);
+    dragLastTime=performance.now();
+    wheelVel=0;
+    cancelAnimationFrame(rafId);
+  }, {passive:true});
+
+  window.addEventListener('touchmove', e=>{
+    if(!dragActive || e.touches.length!==1) return;
+    e.preventDefault();
+    const a=pointerAngle(e.touches[0].clientX,e.touches[0].clientY);
+    let delta=a-dragLastAngle;
+    if(delta> Math.PI) delta-=2*Math.PI;
+    if(delta<-Math.PI) delta+=2*Math.PI;
+    if(Math.abs(delta)>0.008) wasDrag=true;
+    const now=performance.now();
+    const dt=Math.max(now-dragLastTime,1);
+    wheelVel=delta/dt*16;
+    wheelAngle+=delta;
+    dragLastAngle=a;
+    dragLastTime=now;
+    renderWheel();
+  }, {passive:false});
+
+  window.addEventListener('touchend', ()=>{
+    if(!dragActive) return;
+    dragActive=false;
+    coast();
+  });
+
+  // ── Card tap: cancel drag so lifting finger doesn't spin ──
+  wrap.addEventListener('pointerup', e=>{
+    if(e.target.closest('.wheel-card-svg') && !wasDrag) dragActive=false;
+  });
+
+  function coast(){
+    wheelVel*=0.91;
+    if(Math.abs(wheelVel)>0.001){ wheelAngle+=wheelVel; renderWheel(); rafId=requestAnimationFrame(coast); }
+  }
 }
 
 // ═══════════════════════════════════════════════════════════
