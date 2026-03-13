@@ -1,0 +1,1190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>MATH 24</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --surface: #13131a;
+    --surface2: #1c1c27;
+    --border: #2a2a3a;
+    --accent: #f0c040;
+    --accent2: #e05a5a;
+    --accent3: #5ab4e0;
+    --accent4: #5ae08a;
+    --accent5: #c45ae0;
+    --text: #f0eff8;
+    --text-dim: #7a7a9a;
+    --radius: 16px;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    overflow-x: hidden;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    top: -50%; left: -50%;
+    width: 200%; height: 200%;
+    background:
+      radial-gradient(ellipse at 30% 20%, rgba(240,192,64,0.06) 0%, transparent 50%),
+      radial-gradient(ellipse at 70% 80%, rgba(90,180,224,0.05) 0%, transparent 50%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .app {
+    width: 100%;
+    max-width: 480px;
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    padding: 0 16px 32px;
+    position: relative;
+    z-index: 1;
+  }
+
+  /* HEADER */
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 18px 0 10px;
+  }
+
+  .logo {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 2.4rem;
+    letter-spacing: 0.06em;
+    line-height: 1;
+    background: linear-gradient(135deg, var(--accent) 0%, #f09020 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .logo span {
+    background: linear-gradient(135deg, var(--text) 0%, var(--text-dim) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    font-size: 1.4rem;
+    margin-left: 4px;
+    vertical-align: middle;
+  }
+
+  .score-badge { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
+  .score-label { font-size: 0.62rem; color: var(--text-dim); letter-spacing: 0.1em; text-transform: uppercase; }
+  .score-val   { font-family: 'DM Mono', monospace; font-size: 1.4rem; color: var(--accent); font-weight: 500; }
+
+  /* TIER SELECTOR */
+  .tier-section { margin-bottom: 10px; }
+  .section-label { font-size: 0.6rem; color: var(--text-dim); letter-spacing: 0.14em; text-transform: uppercase; margin-bottom: 6px; }
+
+  .tier-scroll {
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 2px;
+  }
+  .tier-scroll::-webkit-scrollbar { display: none; }
+
+  .tier-btn {
+    flex-shrink: 0;
+    padding: 8px 14px;
+    border-radius: 10px;
+    border: 1.5px solid var(--border);
+    background: var(--surface);
+    color: var(--text-dim);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    cursor: pointer;
+    transition: all 0.18s;
+    white-space: nowrap;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+  }
+
+  .tier-btn .tier-range { font-size: 0.58rem; opacity: 0.65; font-weight: 400; letter-spacing: 0; }
+  .tier-btn.active { background: var(--accent); border-color: var(--accent); color: #0a0a0f; }
+  .tier-btn.active .tier-range { opacity: 0.6; }
+  .tier-btn.frac-btn.active { background: var(--accent5); border-color: var(--accent5); color: #fff; }
+  .tier-btn:not(.active):active { transform: scale(0.96); }
+
+  /* TARGET TOGGLE */
+  .target-toggle-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 14px;
+  }
+
+  .toggle-label { font-size: 0.62rem; color: var(--text-dim); letter-spacing: 0.12em; text-transform: uppercase; flex: 1; }
+
+  .toggle-track {
+    position: relative;
+    width: 120px;
+    height: 32px;
+    background: var(--surface2);
+    border: 1.5px solid var(--border);
+    border-radius: 10px;
+    display: flex;
+    cursor: pointer;
+    overflow: hidden;
+    user-select: none;
+  }
+
+  .toggle-thumb {
+    position: absolute;
+    top: 2px; bottom: 2px; left: 2px;
+    width: calc(50% - 2px);
+    background: var(--accent);
+    border-radius: 7px;
+    transition: transform 0.22s cubic-bezier(0.34,1.56,0.64,1);
+    z-index: 0;
+  }
+
+  .toggle-thumb.right { transform: translateX(calc(100% + 2px)); }
+
+  .toggle-option {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 1rem;
+    letter-spacing: 0.05em;
+    position: relative;
+    z-index: 1;
+    transition: color 0.2s;
+    color: var(--text-dim);
+  }
+
+  .toggle-option.active { color: #0a0a0f; }
+
+  /* TARGET DISPLAY */
+  .target-display { text-align: center; margin-bottom: 14px; }
+  .target-label { font-size: 0.65rem; color: var(--text-dim); letter-spacing: 0.15em; text-transform: uppercase; margin-bottom: 2px; }
+
+  .target-number {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 5rem;
+    line-height: 1;
+    background: linear-gradient(135deg, var(--accent) 0%, #f09020 60%, var(--accent2) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    filter: drop-shadow(0 0 20px rgba(240,192,64,0.3));
+    transition: all 0.3s;
+  }
+
+  /* QUALITY ROW */
+  .quality-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin-top: 4px;
+    min-height: 18px;
+    flex-wrap: wrap;
+  }
+
+  .quality-dots { display: flex; gap: 4px; }
+  .q-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--border); transition: background 0.3s; }
+  .q-dot.filled       { background: var(--accent2); }
+  .q-dot.filled.mid   { background: var(--accent);  }
+  .q-dot.filled.high  { background: var(--accent4); }
+
+  .quality-label   { font-size: 0.6rem; color: var(--text-dim); letter-spacing: 0.08em; text-transform: uppercase; }
+  .solutions-badge { font-size: 0.6rem; color: var(--text-dim); font-family: 'DM Mono', monospace; }
+
+  .fraction-badge {
+    font-size: 0.58rem;
+    background: rgba(196,90,224,0.15);
+    color: var(--accent5);
+    border: 1px solid rgba(196,90,224,0.3);
+    border-radius: 6px;
+    padding: 2px 7px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+
+  /* TIMER */
+  .timer-wrap { margin-bottom: 14px; }
+  .timer-track { height: 4px; background: var(--surface2); border-radius: 4px; overflow: hidden; }
+  .timer-bar { height: 100%; border-radius: 4px; background: linear-gradient(90deg, var(--accent4), var(--accent)); transition: width 1s linear, background 0.5s; width: 100%; }
+  .timer-bar.warn { background: linear-gradient(90deg, var(--accent2), var(--accent)); }
+  .timer-row { display: flex; justify-content: space-between; margin-top: 5px; }
+  .timer-text   { font-family: 'DM Mono', monospace; font-size: 0.72rem; color: var(--text-dim); }
+  .puzzle-count { font-size: 0.65rem; color: var(--text-dim); font-family: 'DM Mono', monospace; }
+
+  /* CARDS */
+  .cards-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
+
+  .card {
+    aspect-ratio: 1;
+    border-radius: var(--radius);
+    border: 2px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.15s cubic-bezier(0.34,1.56,0.64,1);
+    position: relative;
+    user-select: none;
+    overflow: hidden;
+  }
+
+  .card:nth-child(1) { background: linear-gradient(135deg, #1e1030 0%, #0f0820 100%); }
+  .card:nth-child(2) { background: linear-gradient(135deg, #0e2030 0%, #081020 100%); }
+  .card:nth-child(3) { background: linear-gradient(135deg, #1e1010 0%, #200808 100%); }
+  .card:nth-child(4) { background: linear-gradient(135deg, #0e2010 0%, #082008 100%); }
+
+  .card.selected {
+    border-color: var(--accent);
+    transform: scale(1.05) translateY(-2px);
+    box-shadow: 0 8px 24px rgba(240,192,64,0.25), 0 0 0 1px rgba(240,192,64,0.3);
+  }
+
+  .card.used { opacity: 0.22; transform: scale(0.95); cursor: default; }
+  .card:not(.used):not(.selected):active { transform: scale(0.97); }
+
+  .card-inner {
+    position: relative;
+    z-index: 1;
+    color: var(--text);
+    text-shadow: 0 2px 8px rgba(0,0,0,0.5);
+    text-align: center;
+  }
+
+  .card-num {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: clamp(2rem, 9vw, 3.2rem);
+    line-height: 1;
+    display: block;
+  }
+
+  /* EXPRESSION */
+  .expr-area {
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius);
+    padding: 12px 14px;
+    margin-bottom: 10px;
+    min-height: 56px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+
+  .expr-token {
+    font-family: 'DM Mono', monospace;
+    font-size: 1.2rem;
+    font-weight: 500;
+    padding: 3px 9px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.12s;
+  }
+
+  .expr-token.number   { background: rgba(240,192,64,0.12); color: var(--accent);  border: 1px solid rgba(240,192,64,0.25); }
+  .expr-token.operator { background: rgba(90,180,224,0.10); color: var(--accent3); border: 1px solid rgba(90,180,224,0.2);  }
+  .expr-token.paren    { background: rgba(90,224,138,0.10); color: var(--accent4); border: 1px solid rgba(90,224,138,0.2);  }
+  .expr-token:active   { opacity: 0.6; transform: scale(0.94); }
+  .expr-placeholder    { color: var(--text-dim); font-size: 0.82rem; font-style: italic; }
+
+  /* OPERATORS */
+  .ops-row { display: grid; grid-template-columns: repeat(6,1fr); gap: 6px; margin-bottom: 9px; }
+
+  .op-btn {
+    padding: 11px 4px;
+    border-radius: 10px;
+    border: 1.5px solid var(--border);
+    background: var(--surface);
+    color: var(--accent3);
+    font-family: 'DM Mono', monospace;
+    font-size: 1.1rem;
+    cursor: pointer;
+    transition: all 0.13s cubic-bezier(0.34,1.56,0.64,1);
+    text-align: center;
+  }
+
+  .op-btn:active { transform: scale(0.92); background: rgba(90,180,224,0.12); }
+
+  /* ACTIONS */
+  .action-row   { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 7px; margin-bottom: 7px; }
+  .action-row-2 { display: grid; grid-template-columns: 1fr 1fr;     gap: 7px; margin-bottom: 9px; }
+
+  .action-btn {
+    padding: 12px 6px;
+    border-radius: 12px;
+    border: none;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.78rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.13s;
+  }
+
+  .btn-clear  { background: rgba(224,90,90,0.13);  color: var(--accent2); border: 1.5px solid rgba(224,90,90,0.25); }
+  .btn-submit { background: var(--accent); color: #0a0a0f; }
+  .btn-hint   { background: rgba(90,224,138,0.11); color: var(--accent4); border: 1.5px solid rgba(90,224,138,0.22); }
+  .btn-new    { background: rgba(240,192,64,0.10); color: var(--accent);  border: 1.5px solid rgba(240,192,64,0.22); }
+  .btn-solve  { background: rgba(90,180,224,0.10); color: var(--accent3); border: 1.5px solid rgba(90,180,224,0.22); }
+
+  .action-btn:active   { transform: scale(0.96); opacity: 0.85; }
+  .action-btn:disabled { opacity: 0.3; cursor: default; transform: none; }
+
+  /* FEEDBACK */
+  .feedback {
+    text-align: center;
+    min-height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 500;
+    font-size: 0.86rem;
+    border-radius: 10px;
+    transition: all 0.25s;
+    opacity: 0;
+    margin-bottom: 9px;
+    padding: 0 12px;
+  }
+
+  .feedback.show    { opacity: 1; }
+  .feedback.correct { background: rgba(90,224,138,0.10); color: var(--accent4); border: 1px solid rgba(90,224,138,0.2);  }
+  .feedback.wrong   { background: rgba(224,90,90,0.09);  color: var(--accent2); border: 1px solid rgba(224,90,90,0.2);   }
+  .feedback.info    { background: rgba(90,180,224,0.09); color: var(--accent3); border: 1px solid rgba(90,180,224,0.15); }
+
+  /* STATS */
+  .stats-row { display: flex; gap: 7px; margin-top: auto; padding-top: 6px; }
+
+  .stat-card { flex: 1; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 9px 6px; text-align: center; }
+  .stat-val   { font-family: 'DM Mono', monospace; font-size: 1.2rem; color: var(--text); }
+  .stat-label { font-size: 0.58rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.08em; margin-top: 2px; }
+
+  /* LOADING */
+  .loading-overlay {
+    position: fixed; inset: 0;
+    background: var(--bg);
+    z-index: 200;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    transition: opacity 0.35s;
+  }
+
+  .loading-overlay.hidden { opacity: 0; pointer-events: none; }
+
+  .loading-logo {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 3.5rem;
+    background: linear-gradient(135deg, var(--accent), #f09020);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .loading-bar-track { width: 180px; height: 3px; background: var(--surface2); border-radius: 3px; overflow: hidden; }
+  .loading-bar { height: 100%; background: linear-gradient(90deg, var(--accent4), var(--accent)); border-radius: 3px; animation: loadPulse 1.4s ease-in-out infinite; }
+
+  @keyframes loadPulse {
+    0%   { width: 0%;  margin-left: 0;    }
+    50%  { width: 70%; margin-left: 15%;  }
+    100% { width: 0%;  margin-left: 100%; }
+  }
+
+  .loading-msg { font-size: 0.78rem; color: var(--text-dim); }
+
+  /* SOLVED OVERLAY */
+  .solved-overlay {
+    position: fixed; inset: 0;
+    background: rgba(10,10,15,0.93);
+    z-index: 50;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 13px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.28s;
+    backdrop-filter: blur(10px);
+    padding: 24px;
+  }
+
+  .solved-overlay.show { opacity: 1; pointer-events: all; }
+
+  .solved-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 3.8rem;
+    background: linear-gradient(135deg, var(--accent), var(--accent4));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .solved-expr {
+    font-family: 'DM Mono', monospace;
+    font-size: 1.1rem;
+    color: var(--text);
+    background: var(--surface2);
+    padding: 11px 20px;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    text-align: center;
+    word-break: break-all;
+    max-width: 100%;
+  }
+
+  .solved-meta { font-size: 0.82rem; color: var(--text-dim); text-align: center; line-height: 1.5; }
+  .solved-meta strong { color: var(--accent); }
+
+  .solved-alts { width: 100%; max-width: 340px; }
+  .solved-alts-label { font-size: 0.58rem; color: var(--text-dim); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 6px; text-align: center; }
+
+  .alt-soln {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.82rem;
+    color: var(--text-dim);
+    background: var(--surface);
+    padding: 7px 12px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    margin-bottom: 5px;
+    text-align: center;
+  }
+
+  .overlay-btn {
+    margin-top: 4px;
+    padding: 13px 36px;
+    border-radius: 14px;
+    border: none;
+    background: var(--accent);
+    color: #0a0a0f;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.92rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    cursor: pointer;
+    box-shadow: 0 4px 20px rgba(240,192,64,0.28);
+    transition: transform 0.13s;
+  }
+
+  .overlay-btn:active { transform: scale(0.97); }
+
+  /* TOAST */
+  .toast {
+    position: fixed;
+    top: 20px; left: 50%;
+    transform: translateX(-50%) translateY(-80px);
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 11px 22px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--text);
+    z-index: 100;
+    transition: transform 0.32s cubic-bezier(0.34,1.56,0.64,1);
+    max-width: 88vw;
+    text-align: center;
+  }
+
+  .toast.show { transform: translateX(-50%) translateY(0); }
+
+  /* ANIMATIONS */
+  @keyframes cardPop {
+    0%   { transform: scale(0.72) translateY(10px); opacity: 0; }
+    100% { transform: scale(1) translateY(0); opacity: 1; }
+  }
+
+  @keyframes shake {
+    0%,100% { transform: translateX(0); }
+    20%     { transform: translateX(-6px); }
+    40%     { transform: translateX(6px); }
+    60%     { transform: translateX(-4px); }
+    80%     { transform: translateX(4px); }
+  }
+
+  @keyframes celebrate {
+    0%   { transform: scale(1); }
+    30%  { transform: scale(1.08); filter: drop-shadow(0 0 30px rgba(240,192,64,0.6)); }
+    60%  { transform: scale(0.97); }
+    100% { transform: scale(1); }
+  }
+
+  @keyframes fireAnim {
+    from { transform: scale(1); }
+    to   { transform: scale(1.22) rotate(5deg); }
+  }
+
+  .card-enter { animation: cardPop 0.28s cubic-bezier(0.34,1.56,0.64,1) both; }
+  .card-enter:nth-child(1) { animation-delay: 0.00s; }
+  .card-enter:nth-child(2) { animation-delay: 0.05s; }
+  .card-enter:nth-child(3) { animation-delay: 0.10s; }
+  .card-enter:nth-child(4) { animation-delay: 0.15s; }
+
+  .shake     { animation: shake 0.38s ease; }
+  .celebrate { animation: celebrate 0.48s ease; }
+
+  .fire-hot { animation: fireAnim 0.5s ease infinite alternate; display: inline-block; }
+
+  .no-puzzles-msg {
+    grid-column: 1 / -1;
+    text-align: center;
+    padding: 28px 12px;
+    color: var(--text-dim);
+    font-size: 0.85rem;
+    line-height: 1.65;
+  }
+
+  .no-puzzles-msg strong { color: var(--accent); display: block; font-size: 1rem; margin-bottom: 8px; }
+</style>
+</head>
+<body>
+
+<!-- LOADING SCREEN -->
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="loading-logo">MATH 24</div>
+  <div class="loading-bar-track"><div class="loading-bar"></div></div>
+  <div class="loading-msg" id="loadingMsg">Loading puzzles…</div>
+</div>
+
+<div class="app">
+
+  <!-- HEADER -->
+  <header>
+    <div class="logo">MATH<span id="logoTarget">24</span></div>
+    <div class="score-badge">
+      <div class="score-label">Score</div>
+      <div class="score-val" id="scoreDisplay">0</div>
+    </div>
+  </header>
+
+  <!-- TIER SELECTOR -->
+  <div class="tier-section">
+    <div class="section-label">Difficulty</div>
+    <div class="tier-scroll">
+      <button class="tier-btn active"   data-tier="easy"     onclick="setTier('easy')">Easy     <span class="tier-range">1–9</span></button>
+      <button class="tier-btn"          data-tier="medium"   onclick="setTier('medium')">Medium <span class="tier-range">1–19</span></button>
+      <button class="tier-btn"          data-tier="hard"     onclick="setTier('hard')">Hard     <span class="tier-range">1–29</span></button>
+      <button class="tier-btn"          data-tier="expert"   onclick="setTier('expert')">Expert <span class="tier-range">1–49</span></button>
+      <button class="tier-btn"          data-tier="extreme"  onclick="setTier('extreme')">Extreme<span class="tier-range">1–49</span></button>
+      <button class="tier-btn frac-btn" data-tier="fraction" onclick="setTier('fraction')">Fraction <span class="tier-range">∞</span></button>
+    </div>
+  </div>
+
+  <!-- TARGET TOGGLE -->
+  <div class="target-toggle-row">
+    <div class="toggle-label">Target Number</div>
+    <div class="toggle-track" id="toggleTrack" onclick="toggleTarget()">
+      <div class="toggle-thumb" id="toggleThumb"></div>
+      <div class="toggle-option active" id="opt24">24</div>
+      <div class="toggle-option"        id="opt60">60</div>
+    </div>
+  </div>
+
+  <!-- TARGET + QUALITY -->
+  <div class="target-display">
+    <div class="target-label">Make This Number</div>
+    <div class="target-number" id="targetDisplay">24</div>
+    <div class="quality-row" id="qualityRow">
+      <div class="quality-dots"  id="qualityDots"></div>
+      <div class="quality-label" id="qualityLabel"></div>
+      <div class="solutions-badge" id="solutionsBadge"></div>
+      <div class="fraction-badge" id="fractionBadge" style="display:none">Fractions</div>
+    </div>
+  </div>
+
+  <!-- TIMER -->
+  <div class="timer-wrap">
+    <div class="timer-track"><div class="timer-bar" id="timerBar"></div></div>
+    <div class="timer-row">
+      <div class="timer-text"  id="timerText">90s</div>
+      <div class="puzzle-count" id="puzzleCount"></div>
+    </div>
+  </div>
+
+  <!-- CARDS -->
+  <div class="cards-grid" id="cardsGrid"></div>
+
+  <!-- EXPRESSION -->
+  <div class="expr-area" id="exprArea">
+    <span class="expr-placeholder">Tap numbers and operators to build your expression…</span>
+  </div>
+
+  <!-- OPERATORS -->
+  <div class="ops-row">
+    <button class="op-btn" onclick="addOp('+')">+</button>
+    <button class="op-btn" onclick="addOp('−')">−</button>
+    <button class="op-btn" onclick="addOp('×')">×</button>
+    <button class="op-btn" onclick="addOp('÷')">÷</button>
+    <button class="op-btn" onclick="addOp('(')"><span style="color:var(--accent4)">(</span></button>
+    <button class="op-btn" onclick="addOp(')')"><span style="color:var(--accent4)">)</span></button>
+  </div>
+
+  <!-- ACTIONS -->
+  <div class="action-row">
+    <button class="action-btn btn-clear"  onclick="clearExpr()">Clear</button>
+    <button class="action-btn btn-submit" onclick="submitExpr()">Check ✓</button>
+    <button class="action-btn btn-hint"   onclick="showHint()">Hint</button>
+  </div>
+  <div class="action-row-2">
+    <button class="action-btn btn-new"   onclick="newPuzzle()">New Puzzle</button>
+    <button class="action-btn btn-solve" onclick="showSolution()">Solution</button>
+  </div>
+
+  <!-- FEEDBACK -->
+  <div class="feedback" id="feedback"></div>
+
+  <!-- STATS -->
+  <div class="stats-row">
+    <div class="stat-card">
+      <div class="stat-val"  id="solvedStat">0</div>
+      <div class="stat-label">Solved</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-val"  id="streakStat">0 🔥</div>
+      <div class="stat-label">Streak</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-val"  id="bestStat">--</div>
+      <div class="stat-label">Best</div>
+    </div>
+  </div>
+
+</div><!-- /app -->
+
+<!-- SOLVED OVERLAY -->
+<div class="solved-overlay" id="solvedOverlay">
+  <div class="solved-title">SOLVED! 🎉</div>
+  <div class="solved-expr" id="solvedExpr"></div>
+  <div class="solved-meta" id="solvedMeta"></div>
+  <div class="solved-alts" id="solvedAlts"></div>
+  <button class="overlay-btn" onclick="nextPuzzle()">Next Puzzle →</button>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════════
+//  CONFIG
+// ═══════════════════════════════════════════════════════════════════
+const TIERS = {
+  easy:     { label:'Easy',     range:'1–9'  },
+  medium:   { label:'Medium',   range:'1–19' },
+  hard:     { label:'Hard',     range:'1–29' },
+  expert:   { label:'Expert',   range:'1–49' },
+  extreme:  { label:'Extreme',  range:'1–49' },
+  fraction: { label:'Fraction', range:'∞'   },
+};
+
+function puzzleFile(tier, target) {
+  const prefix = target === 60 ? 'puzzles_t60_' : 'puzzles_';
+  return `${prefix}${tier}.json`;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  STATE
+// ═══════════════════════════════════════════════════════════════════
+const cache   = {};   // key → puzzle array
+const played  = {};   // key → Set of played indices
+
+let currentTier   = 'easy';
+let currentTarget = 24;
+let currentPuzzle = null;
+
+let numbers    = [];
+let expression = [];
+let usedCards  = new Set();
+
+let hintUsed  = false;
+let solveUsed = false;
+
+let score    = 0;
+let solved   = 0;
+let streak   = 0;
+let bestTime = null;
+
+let timerInterval   = null;
+let timeLeft        = 90;
+let puzzleStartTime = null;
+
+// ═══════════════════════════════════════════════════════════════════
+//  BOOT
+// ═══════════════════════════════════════════════════════════════════
+async function boot() {
+  await loadTier(currentTier, currentTarget);
+  hideLoading();
+  newPuzzle();
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  PUZZLE LOADING
+// ═══════════════════════════════════════════════════════════════════
+function cacheKey(tier, target) { return `${tier}_${target}`; }
+
+async function loadTier(tier, target) {
+  const key = cacheKey(tier, target);
+  if (cache[key]) return;
+
+  const file = puzzleFile(tier, target);
+  setLoadingMsg(`Loading ${TIERS[tier]?.label || tier} puzzles…`);
+
+  try {
+    const resp = await fetch(file);
+    if (!resp.ok) throw new Error(`${resp.status}`);
+    const data = await resp.json();
+    cache[key]  = data.filter(p => p.q >= 20);
+    played[key] = new Set();
+  } catch(e) {
+    console.warn(`Could not load ${file} — using fallback generator.`);
+    cache[key]  = buildFallback(tier, target);
+    played[key] = new Set();
+  }
+}
+
+// ─── Fallback: generate solvable puzzles client-side ─────────────
+const RANGES = { easy:[1,9], medium:[1,19], hard:[1,29], expert:[1,49], extreme:[1,49], fraction:[1,9] };
+
+function buildFallback(tier, target) {
+  const [lo, hi] = RANGES[tier] || [1,9];
+  const results  = [];
+  let attempts   = 0;
+  while (results.length < 40 && attempts < 8000) {
+    attempts++;
+    const nums = Array.from({length:4}, () => rnd(lo, hi));
+    const sol  = quickSolve(nums, target);
+    if (sol) results.push({ n:nums, s:[sol], c:1, q:50, f:false });
+  }
+  return results;
+}
+
+function rnd(lo, hi) { return Math.floor(Math.random()*(hi-lo+1))+lo; }
+
+function quickSolve(nums, target) {
+  const ops = ['+','-','*','/'];
+  for (const p of permutations(nums)) {
+    const [a,b,c,d] = p;
+    for (const o1 of ops) for (const o2 of ops) for (const o3 of ops) {
+      const candidates = [
+        `((${a}${o1}${b})${o2}${c})${o3}${d}`,
+        `(${a}${o1}(${b}${o2}${c}))${o3}${d}`,
+        `(${a}${o1}${b})${o2}(${c}${o3}${d})`,
+        `${a}${o1}((${b}${o2}${c})${o3}${d})`,
+        `${a}${o1}(${b}${o2}(${c}${o3}${d}))`,
+      ];
+      for (const e of candidates) {
+        try {
+          if (Math.abs(safeEval(e) - target) < 1e-9)
+            return e.replace(/\*/g,'×').replace(/\//g,'÷').replace(/-/g,'−');
+        } catch(_){}
+      }
+    }
+  }
+  return null;
+}
+
+function permutations(arr) {
+  if (arr.length <= 1) return [arr];
+  const r = [];
+  for (let i=0; i<arr.length; i++) {
+    const rest = [...arr.slice(0,i), ...arr.slice(i+1)];
+    for (const p of permutations(rest)) r.push([arr[i], ...p]);
+  }
+  return r;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  TIER / TARGET CONTROLS
+// ═══════════════════════════════════════════════════════════════════
+async function setTier(tier) {
+  if (tier === currentTier) return;
+  currentTier = tier;
+  document.querySelectorAll('.tier-btn').forEach(b =>
+    b.classList.toggle('active', b.dataset.tier === tier));
+  showLoading();
+  await loadTier(tier, currentTarget);
+  hideLoading();
+  newPuzzle();
+}
+
+async function toggleTarget() {
+  currentTarget = currentTarget === 24 ? 60 : 24;
+  const is60 = currentTarget === 60;
+  document.getElementById('toggleThumb').classList.toggle('right', is60);
+  document.getElementById('opt24').classList.toggle('active', !is60);
+  document.getElementById('opt60').classList.toggle('active',  is60);
+  document.getElementById('targetDisplay').textContent = currentTarget;
+  document.getElementById('logoTarget').textContent    = currentTarget;
+  showLoading();
+  await loadTier(currentTier, currentTarget);
+  hideLoading();
+  newPuzzle();
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  PUZZLE PICKING
+// ═══════════════════════════════════════════════════════════════════
+function pickPuzzle() {
+  const key   = cacheKey(currentTier, currentTarget);
+  const pool  = cache[key]  || [];
+  const seen  = played[key] || new Set();
+
+  if (!pool.length) return null;
+
+  // Prefer quality ≥70, fallback ≥40, fallback any
+  const unplayed = (minQ) => pool.reduce((acc, p, i) => {
+    if (p.q >= minQ && !seen.has(i)) acc.push(i);
+    return acc;
+  }, []);
+
+  let idxList = unplayed(70);
+  if (!idxList.length) idxList = unplayed(40);
+  if (!idxList.length) idxList = pool.map((_,i)=>i).filter(i=>!seen.has(i));
+  if (!idxList.length) { played[key] = new Set(); idxList = pool.map((_,i)=>i); }
+
+  const pick = idxList[Math.floor(Math.random() * idxList.length)];
+  seen.add(pick);
+  return pool[pick];
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  PUZZLE LIFECYCLE
+// ═══════════════════════════════════════════════════════════════════
+function newPuzzle() {
+  clearInterval(timerInterval);
+  expression = [];
+  usedCards  = new Set();
+  hintUsed   = false;
+  solveUsed  = false;
+
+  currentPuzzle = pickPuzzle();
+
+  if (!currentPuzzle) {
+    document.getElementById('cardsGrid').innerHTML =
+      `<div class="no-puzzles-msg">
+         <strong>No Puzzles Loaded</strong>
+         Run <code>generate_puzzles.py</code> and place the JSON files alongside index.html.<br><br>
+         Until then, using the built-in fallback generator.
+       </div>`;
+    hideQuality();
+    return;
+  }
+
+  numbers = [...currentPuzzle.n];
+  renderCards();
+  renderExpr();
+  renderQuality();
+  hideFeedback();
+  startTimer();
+  updatePuzzleCount();
+  document.getElementById('solvedOverlay').classList.remove('show');
+}
+
+function nextPuzzle() {
+  document.getElementById('solvedOverlay').classList.remove('show');
+  newPuzzle();
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  RENDER
+// ═══════════════════════════════════════════════════════════════════
+function renderCards() {
+  const grid = document.getElementById('cardsGrid');
+  grid.innerHTML = '';
+  numbers.forEach((n, i) => {
+    const card = document.createElement('div');
+    card.className = 'card card-enter';
+    card.innerHTML = `<div class="card-inner"><span class="card-num">${n}</span></div>`;
+    card.addEventListener('click', () => selectCard(i));
+    grid.appendChild(card);
+  });
+}
+
+function renderExpr() {
+  const area = document.getElementById('exprArea');
+  area.innerHTML = '';
+  if (!expression.length) {
+    area.innerHTML = '<span class="expr-placeholder">Tap numbers and operators to build your expression…</span>';
+    return;
+  }
+  expression.forEach((token, idx) => {
+    const cls  = token.type === 'number' ? 'number' : token.type === 'paren' ? 'paren' : 'operator';
+    const span = document.createElement('span');
+    span.className   = `expr-token ${cls}`;
+    span.textContent = token.value;
+    span.addEventListener('click', () => removeToken(idx));
+    area.appendChild(span);
+  });
+}
+
+function renderQuality() {
+  if (!currentPuzzle) { hideQuality(); return; }
+  const { q, c, f } = currentPuzzle;
+
+  const filled = Math.round(q / 20);
+  const dotCls = filled >= 4 ? 'high' : filled >= 3 ? 'mid' : 'low';
+  const dotsEl = document.getElementById('qualityDots');
+  dotsEl.innerHTML = '';
+  for (let i=1; i<=5; i++) {
+    const d = document.createElement('div');
+    d.className = `q-dot${i<=filled ? ` filled ${dotCls}` : ''}`;
+    dotsEl.appendChild(d);
+  }
+
+  document.getElementById('qualityLabel').textContent   = q>=70 ? 'Great' : q>=40 ? 'Good' : 'Fair';
+  document.getElementById('solutionsBadge').textContent = `${c} solution${c!==1?'s':''}`;
+  document.getElementById('fractionBadge').style.display = f ? 'inline-block' : 'none';
+}
+
+function hideQuality() {
+  document.getElementById('qualityDots').innerHTML     = '';
+  document.getElementById('qualityLabel').textContent  = '';
+  document.getElementById('solutionsBadge').textContent= '';
+  document.getElementById('fractionBadge').style.display = 'none';
+}
+
+function updatePuzzleCount() {
+  const key  = cacheKey(currentTier, currentTarget);
+  const pool = cache[key] || [];
+  document.getElementById('puzzleCount').textContent = pool.length ? `${pool.length.toLocaleString()} puzzles` : '';
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  INTERACTION
+// ═══════════════════════════════════════════════════════════════════
+function selectCard(idx) {
+  if (usedCards.has(idx)) return;
+  expression.push({ type:'number', value: String(numbers[idx]), cardIdx: idx });
+  usedCards.add(idx);
+  document.querySelectorAll('.card')[idx]?.classList.add('used');
+  renderExpr();
+  hideFeedback();
+}
+
+function addOp(op) {
+  expression.push({ type: (op==='('||op===')') ? 'paren' : 'operator', value: op });
+  renderExpr();
+  hideFeedback();
+}
+
+function removeToken(idx) {
+  const token = expression[idx];
+  if (token.type === 'number' && token.cardIdx !== undefined) {
+    usedCards.delete(token.cardIdx);
+    document.querySelectorAll('.card')[token.cardIdx]?.classList.remove('used','selected');
+  }
+  expression.splice(idx, 1);
+  renderExpr();
+}
+
+function clearExpr() {
+  expression = [];
+  usedCards  = new Set();
+  document.querySelectorAll('.card').forEach(c => c.classList.remove('used','selected'));
+  renderExpr();
+  hideFeedback();
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  SUBMIT / EVAL
+// ═══════════════════════════════════════════════════════════════════
+function safeEval(expr) {
+  return Function('"use strict"; return (' + expr + ')')();
+}
+
+function submitExpr() {
+  if (!expression.length)   { showFeedback('Build an expression first!', 'info');  return; }
+  if (usedCards.size < 4)   { showFeedback('Use all 4 numbers!', 'wrong'); shakeExpr(); return; }
+
+  const evalStr = expression.map(t => {
+    if (t.type === 'number') return t.value;
+    if (t.value === '×') return '*';
+    if (t.value === '÷') return '/';
+    if (t.value === '−') return '-';
+    return t.value;
+  }).join('');
+
+  let result;
+  try { result = safeEval(evalStr); }
+  catch(e) { showFeedback('Invalid expression!', 'wrong'); shakeExpr(); return; }
+
+  if (Math.abs(result - currentTarget) < 1e-9) {
+    handleCorrect();
+  } else {
+    const disp = Number.isInteger(result) ? result : result.toFixed(3);
+    showFeedback(`That equals ${disp}, not ${currentTarget}`, 'wrong');
+    shakeExpr();
+  }
+}
+
+function handleCorrect() {
+  const elapsed     = Math.round((Date.now() - puzzleStartTime) / 1000);
+  const timeBonus   = Math.max(0, timeLeft);
+  const hintDeduct  = hintUsed  ? 30 : 0;
+  const solveDeduct = solveUsed ? 80 : 0;
+  const pts = Math.max(10, 100 + timeBonus * 2 - hintDeduct - solveDeduct);
+
+  score++;  // placeholder for potential future scoring
+  score = score - 1; // undo
+  score += pts;
+  solved++;
+  streak++;
+  if (bestTime === null || elapsed < bestTime) bestTime = elapsed;
+
+  clearInterval(timerInterval);
+  updateStats();
+
+  // Overlay
+  const exprStr = expression.map(t => t.value).join(' ');
+  document.getElementById('solvedExpr').textContent = `${exprStr} = ${currentTarget}`;
+  const penalties = hintUsed || solveUsed
+    ? ' · <span style="color:var(--accent2)">penalty applied</span>' : '';
+  document.getElementById('solvedMeta').innerHTML =
+    `+<strong>${pts}</strong> pts · solved in ${elapsed}s${penalties}`;
+
+  // Alt solutions (from JSON, excluding what the player just entered)
+  const alts = (currentPuzzle?.s || []).filter(s => s.replace(/\s/g,'') !== exprStr.replace(/\s/g,''));
+  const altsEl = document.getElementById('solvedAlts');
+  altsEl.innerHTML = '';
+  if (alts.length) {
+    const lbl = document.createElement('div');
+    lbl.className   = 'solved-alts-label';
+    lbl.textContent = 'Other solutions';
+    altsEl.appendChild(lbl);
+    alts.slice(0, 2).forEach(s => {
+      const d = document.createElement('div');
+      d.className   = 'alt-soln';
+      d.textContent = s;
+      altsEl.appendChild(d);
+    });
+  }
+
+  document.getElementById('solvedOverlay').classList.add('show');
+  document.getElementById('targetDisplay').classList.add('celebrate');
+  setTimeout(() => document.getElementById('targetDisplay').classList.remove('celebrate'), 500);
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  HINT / SOLUTION
+// ═══════════════════════════════════════════════════════════════════
+function showHint() {
+  if (!currentPuzzle?.s?.length) { showFeedback('No hint available','info'); return; }
+  hintUsed = true;
+  const firstNum = currentPuzzle.s[0].match(/\d+/)?.[0] ?? '?';
+  showFeedback(`Hint: try starting with ${firstNum}  (−30 pts)`, 'info');
+}
+
+function showSolution() {
+  if (!currentPuzzle?.s?.length) { showFeedback('No solution available','info'); return; }
+  hintUsed  = true;
+  solveUsed = true;
+  showFeedback(`Solution: ${currentPuzzle.s[0]}`, 'info');
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  TIMER
+// ═══════════════════════════════════════════════════════════════════
+function startTimer() {
+  timeLeft = 90;
+  puzzleStartTime = Date.now();
+  updateTimerDisplay();
+
+  timerInterval = setInterval(() => {
+    timeLeft--;
+    updateTimerDisplay();
+    if (timeLeft <= 0) {
+      clearInterval(timerInterval);
+      streak = 0;
+      updateStats();
+      showFeedback("Time's up!", 'wrong');
+      if (currentPuzzle?.s?.length)
+        setTimeout(() => showToast(`Solution: ${currentPuzzle.s[0]}`), 500);
+    }
+  }, 1000);
+}
+
+function updateTimerDisplay() {
+  const pct = (timeLeft / 90) * 100;
+  const bar = document.getElementById('timerBar');
+  bar.style.width = pct + '%';
+  bar.classList.toggle('warn', timeLeft < 20);
+  document.getElementById('timerText').textContent = timeLeft + 's';
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  STATS
+// ═══════════════════════════════════════════════════════════════════
+function updateStats() {
+  document.getElementById('scoreDisplay').textContent = score;
+  document.getElementById('solvedStat').textContent   = solved;
+  const hot = streak >= 3 ? ' fire-hot' : '';
+  document.getElementById('streakStat').innerHTML = `${streak} <span class="${hot.trim()}">🔥</span>`;
+  document.getElementById('bestStat').textContent = bestTime !== null ? bestTime + 's' : '--';
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  UI HELPERS
+// ═══════════════════════════════════════════════════════════════════
+function showFeedback(msg, type) {
+  const el = document.getElementById('feedback');
+  el.textContent = msg;
+  el.className   = `feedback show ${type}`;
+}
+
+function hideFeedback() {
+  document.getElementById('feedback').className = 'feedback';
+}
+
+function shakeExpr() {
+  const a = document.getElementById('exprArea');
+  a.classList.remove('shake');
+  void a.offsetWidth;
+  a.classList.add('shake');
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3500);
+}
+
+function showLoading()       { document.getElementById('loadingOverlay').classList.remove('hidden'); }
+function hideLoading()       { document.getElementById('loadingOverlay').classList.add('hidden'); }
+function setLoadingMsg(msg)  { document.getElementById('loadingMsg').textContent = msg; }
+
+// ═══════════════════════════════════════════════════════════════════
+//  GO
+// ═══════════════════════════════════════════════════════════════════
+boot();
+</script>
+</body>
+</html>
