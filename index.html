@@ -288,7 +288,7 @@ header{display:flex;align-items:center;justify-content:space-between;padding:18p
   <div class="step-history" id="stepHistory"></div>
 
   <div class="expr-area" id="exprArea">
-    <span class="expr-placeholder">Tap a number, then an operator, then another number…</span>
+    <span class="expr-placeholder">Tap two numbers then an operator, or: number → op → number…</span>
   </div>
 
   <div class="ops-row">
@@ -883,7 +883,6 @@ function selectTile(id){
   const tileCount=expression.filter(t=>t.type==='tile').length;
   if(tileCount>=2){showFeedback('Each step uses exactly 2 numbers','info');return;}
   const lastToken=expression[expression.length-1];
-  if(tileCount===1&&lastToken?.type==='tile'){showFeedback('Add an operator first','info');return;}
   expression.push({type:'tile',tileId:id,display:tile.display,evalVal:tile.value});
   hideFeedback();renderWheel();renderExpr();
 }
@@ -891,7 +890,17 @@ function selectTile(id){
 function addOp(op){
   const tileCount=expression.filter(t=>t.type==='tile').length;
   if(tileCount===0){showFeedback('Tap a number first','info');return;}
-  if(tileCount===2){showFeedback('Press = to evaluate, or clear','info');return;}
+  if(tileCount===2){
+    if(!expression.some(t=>t.type==='op')){
+      // RPN: insert operator before the second tile, then immediately commit
+      expression.splice(expression.length-1,0,{type:'op',display:op});
+      renderExpr();
+      commitStep();
+      return;
+    }
+    // Two tiles + operator already present — just wait for =
+    return;
+  }
   const last=expression[expression.length-1];
   if(last?.type==='op')expression.pop();
   expression.push({type:'op',display:op});
