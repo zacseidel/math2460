@@ -220,6 +220,8 @@ header{display:flex;align-items:center;justify-content:space-between;padding:18p
 
 @keyframes celebrate{0%{transform:scale(1);}30%{transform:scale(1.08);}60%{transform:scale(.97);}100%{transform:scale(1);}}
 @keyframes fireAnim{from{transform:scale(1);}to{transform:scale(1.22) rotate(5deg);}}
+@keyframes shake{0%,100%{transform:translateX(0);}20%{transform:translateX(-6px);}40%{transform:translateX(6px);}60%{transform:translateX(-4px);}80%{transform:translateX(4px);}}
+.shake{animation:shake 0.35s ease;}
 .celebrate{animation:celebrate .48s ease;}
 .fire-hot{animation:fireAnim .5s ease infinite alternate;display:inline-block;}
 .no-puzzles-msg{text-align:center;padding:28px 12px;color:var(--text-dim);font-size:.85rem;line-height:1.65;}
@@ -296,7 +298,6 @@ header{display:flex;align-items:center;justify-content:space-between;padding:18p
     <button class="op-btn" onclick="addOp('−')">−</button>
     <button class="op-btn" onclick="addOp('×')">×</button>
     <button class="op-btn" onclick="addOp('÷')">÷</button>
-    <button class="op-btn eq-btn" onclick="commitStep()">=</button>
   </div>
 
   <div class="action-row">
@@ -420,7 +421,7 @@ let hintUsed=false,solveUsed=false,score=0,solved=0,streak=0,bestTime=null;
 let puzzleStartTime=null;
 
 // Wheel physics
-let wheelAngle=0,wheelVel=0,dragActive=false,wasDrag=false;
+let wheelAngle=0,wheelVel=0,dragActive=false,wasDrag=false,scrollMode=false;
 let dragLastAngle=0,dragLastTime=0,rafId=null;
 
 // ═══════════════════════════════════════════════════════════
@@ -450,7 +451,7 @@ async function loadTier(tier,target){
   try{
     const r=await fetch(puzzleFile(tier,target));
     if(!r.ok)throw 0;
-    cache[key]=(await r.json()).filter(p=>p.q>=20);
+    cache[key]=(await r.json()).filter(p=>p.q>=20 && (tier==='fraction' || !p.f));
     played[key]=new Set();
   }catch{cache[key]=buildFallback(tier,target);played[key]=new Set();}
 }
@@ -479,7 +480,7 @@ function newPuzzle(){
   wheelAngle=0;wheelVel=0;
   hintUsed=false;solveUsed=false;
   currentPuzzle=pickPuzzle();
-  if(!currentPuzzle){document.getElementById('wheelWrap').innerHTML='<div class="no-puzzles-msg"><strong>No Puzzles Loaded</strong>Run generate_puzzles.py and place JSON files alongside index.html.</div>';hideQuality();return;}
+  if(!currentPuzzle||!Array.isArray(currentPuzzle.n)||currentPuzzle.n.length!==4){document.getElementById('wheelWrap').innerHTML='<div class="no-puzzles-msg"><strong>No Puzzles Loaded</strong>Run generate_puzzles.py and place JSON files alongside index.html.</div>';hideQuality();return;}
   tiles=currentPuzzle.n.map((n)=>makeTile(n,String(n),String(n),false));
   puzzleStartTime=Date.now();
   renderAll();hideFeedback();updatePuzzleCount();
@@ -766,7 +767,7 @@ function renderWheel(){
 
 function renderStepHistory(){const el=document.getElementById('stepHistory');el.innerHTML='';stepHistory.forEach(s=>{const row=document.createElement('div');row.className='step-row';row.innerHTML=`<span class="step-expr">${s.expr}</span><span class="step-result">= ${s.result}</span>`;el.appendChild(row);});}
 
-function renderExpr(){const area=document.getElementById('exprArea');area.innerHTML='';if(!expression.length){area.innerHTML='<span class="expr-placeholder">Tap a number, then an operator, then another number…</span>';return;}expression.forEach((token,idx)=>{const span=document.createElement('span');span.className=`expr-token ${token.type==='tile'?'number':'operator'}`;span.textContent=token.display;span.addEventListener('click',()=>removeToken(idx));area.appendChild(span);});}
+function renderExpr(){const area=document.getElementById('exprArea');area.innerHTML='';if(!expression.length){area.innerHTML='<span class="expr-placeholder">Tap a number, an operator, then a second number…</span>';return;}expression.forEach((token,idx)=>{const span=document.createElement('span');span.className=`expr-token ${token.type==='tile'?'number':'operator'}`;span.textContent=token.display;span.addEventListener('click',()=>removeToken(idx));area.appendChild(span);});}
 
 function renderQuality(){
   if(!currentPuzzle){hideQuality();return;}
@@ -793,9 +794,18 @@ function initWheelDrag(){
     return Math.atan2(clientY-rect.top-cy, clientX-rect.left-cx);
   }
 
+  function isInCenterZone(clientX, clientY){
+    const rect=wrap.getBoundingClientRect();
+    const{cx,cy,orbitR,cardH}=getGeometry();
+    const dx=clientX-rect.left-cx, dy=clientY-rect.top-cy;
+    return Math.sqrt(dx*dx+dy*dy) < orbitR-cardH*0.5;
+  }
+
   // ── Mouse ────────────────────────────────────────────────
   wrap.addEventListener('mousedown', e=>{
     if(e.button!==0) return;          // left button only
+    if(isInCenterZone(e.clientX,e.clientY)){ scrollMode=true; return; }
+    scrollMode=false;
     dragActive=true; wasDrag=false;
     dragLastAngle=pointerAngle(e.clientX,e.clientY);
     dragLastTime=performance.now();
@@ -805,6 +815,7 @@ function initWheelDrag(){
   });
 
   window.addEventListener('mousemove', e=>{
+    if(scrollMode) return;
     if(!dragActive) return;
     if(e.buttons===0){ dragActive=false; return; }  // button released without mouseup
     const a=pointerAngle(e.clientX,e.clientY);
@@ -822,6 +833,7 @@ function initWheelDrag(){
   });
 
   window.addEventListener('mouseup', ()=>{
+    scrollMode=false;
     if(!dragActive) return;
     dragActive=false;
     coast();
@@ -830,6 +842,10 @@ function initWheelDrag(){
   // ── Touch ────────────────────────────────────────────────
   wrap.addEventListener('touchstart', e=>{
     if(e.touches.length!==1) return;
+    if(isInCenterZone(e.touches[0].clientX,e.touches[0].clientY)){
+      scrollMode=true; return; // no preventDefault — let browser scroll
+    }
+    scrollMode=false;
     dragActive=true; wasDrag=false;
     dragLastAngle=pointerAngle(e.touches[0].clientX,e.touches[0].clientY);
     dragLastTime=performance.now();
@@ -839,6 +855,7 @@ function initWheelDrag(){
   }, {passive:false});
 
   window.addEventListener('touchmove', e=>{
+    if(scrollMode) return; // let browser scroll
     if(!dragActive || e.touches.length!==1) return;
     e.preventDefault();
     const a=pointerAngle(e.touches[0].clientX,e.touches[0].clientY);
@@ -856,6 +873,7 @@ function initWheelDrag(){
   }, {passive:false});
 
   window.addEventListener('touchend', ()=>{
+    scrollMode=false;
     if(!dragActive) return;
     dragActive=false;
     coast();
@@ -884,6 +902,10 @@ function selectTile(id){
   if(tileCount>=2){showFeedback('Each step uses exactly 2 numbers','info');return;}
   const lastToken=expression[expression.length-1];
   expression.push({type:'tile',tileId:id,display:tile.display,evalVal:tile.value});
+  // auto-commit if expression is now: tile op tile
+  if(expression.filter(t=>t.type==='tile').length===2 && expression.some(t=>t.type==='op')){
+    renderWheel(); renderExpr(); commitStep(); return;
+  }
   hideFeedback();renderWheel();renderExpr();
 }
 
@@ -986,7 +1008,7 @@ function showSolution(){if(!currentPuzzle?.s?.length){showFeedback('No solution 
 // ═══════════════════════════════════════════════════════════
 //  HELPERS
 // ═══════════════════════════════════════════════════════════
-function safeEval(e){return Function('"use strict";return('+e+')')();}
+function safeEval(e){if(!/^[0-9+\-*/().\s]+$/.test(e))throw new Error('Invalid expression');return Function('"use strict";return('+e+')')();}
 function updateStats(){document.getElementById('scoreDisplay').textContent=score;document.getElementById('solvedStat').textContent=solved;const hot=streak>=3?' fire-hot':'';document.getElementById('streakStat').innerHTML=`${streak} <span class="${hot.trim()}">🔥</span>`;document.getElementById('bestStat').textContent=bestTime!==null?bestTime+'s':'--';}
 function showFeedback(msg,type){const el=document.getElementById('feedback');el.textContent=msg;el.className=`feedback show ${type}`;}
 function hideFeedback(){document.getElementById('feedback').className='feedback';}
